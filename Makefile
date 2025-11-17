@@ -20,6 +20,7 @@ SHELL := /bin/bash
 .PHONY: build-cross-umadb-aarch64-unknown-linux-gnu
 .PHONY: build-cross-umadb-x86_64-apple-darwin
 .PHONY: build-cross-umadb-aarch64-apple-darwin
+.PHONY: cross_build
 .PHONY: test-cross-umadb-all
 .PHONY: test-cross-umadb-x86_64-unknown-linux-musl
 .PHONY: test-cross-umadb-aarch64-unknown-linux-musl
@@ -174,7 +175,7 @@ cross_build:
 	$(MAKE) ensure_target
 	@echo "🚀 Building RUST_TARGET: $(RUST_TARGET), HOST_OS: $(HOST_OS), HOST_ARCH: $(HOST_ARCH)"
 	echo "🔧 Standard cross build"
-	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" PROTOC=/usr/bin/protoc cross build --release --package umadb --target "$(RUST_TARGET)"
+	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" PROTOC=/usr/bin/protoc cross build --release --target "$(RUST_TARGET)" --package umadb
 
 # ---------------------------------------------
 # Build targets

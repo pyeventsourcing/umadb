@@ -24,8 +24,9 @@ jobs:
       matrix:
         include:
           # Linux GNU
-          - os: ubuntu-latest
-            rust_target: x86_64-unknown-linux-gnu
+          #  disabled here because crate 'aws-lc-sys' objects to a "memcmp related bug" in GCC
+#          - os: ubuntu-latest
+#            rust_target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             rust_target: aarch64-unknown-linux-gnu
           # Linux MUSL
