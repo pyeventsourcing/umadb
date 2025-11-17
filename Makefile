@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: clean
 .PHONY: build
 .PHONY: build-workspace-exclude-python
@@ -152,61 +154,50 @@ HOST_OS := $(shell uname -s)
 
 
 # Install cross if needed
-define ensure_cross
+ensure_cross:
 	@if [ -z "$(CROSS)" ]; then \
 		echo "🔧 Installing cross..."; \
 		cargo install cross --git https://github.com/cross-rs/cross || exit 1; \
+	else \
+		echo "🔧 Found cross..."; \
 	fi
-endef
 
 # Install rust target
-define ensure_target
-	@echo "🔧 Ensuring Rust target: $(1)"
-	rustup target add $(1) >/dev/null 2>&1 || true
-endef
+ensure_target:
+	@echo "🔧 Ensuring Rust target: $(RUST_TARGET)"
+	rustup target add $(RUST_TARGET)
 
-# Determine CROSS_PLATFORM automatically for Docker emulation
-define platform_for
-	$(if $(filter x86_64,$(HOST_ARCH)),$(1),$(if $(filter aarch64,$(HOST_ARCH)),$(2),linux/amd64))
-endef
 
 # Helper to build with platform if needed
-define cross_build
-	$(call ensure_cross)
-	$(call ensure_target,$(1))
-	@echo "🚀 Building $(1)..."
-	@if [ "$(HOST_ARCH)" = "arm64" ] || [ "$(HOST_ARCH)" = "aarch64" ]; then \
-		if [ "$(2)" = "x86_64" ]; then \
-			CROSS_PLATFORM=linux/amd64 CARGO_BUILD_BUILD_DIR=target/$(1) cross build --release --package umadb --target $(1); \
-		else \
-			CARGO_BUILD_BUILD_DIR=target/$(1) cross build --release --package umadb --target $(1); \
-		fi \
-	else \
-		CARGO_BUILD_BUILD_DIR=target/$(1) cross build --release --package umadb --target $(1); \
-	fi
-endef
+cross_build:
+	$(MAKE) ensure_cross
+	$(MAKE) ensure_target
+	@echo "🚀 Building RUST_TARGET: $(RUST_TARGET), HOST_OS: $(HOST_OS), HOST_ARCH: $(HOST_ARCH)"
+	echo "🔧 Standard cross build"
+	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" \
+	cross build --release --package umadb --target "$(RUST_TARGET)"
 
 # ---------------------------------------------
 # Build targets
 # ---------------------------------------------
 
 build-cross-umadb-x86_64-unknown-linux-musl:
-	$(call cross_build,x86_64-unknown-linux-musl,x86_64)
+	$(MAKE) cross_build RUST_TARGET=x86_64-unknown-linux-musl
 
 build-cross-umadb-aarch64-unknown-linux-musl:
-	$(call cross_build,aarch64-unknown-linux-musl,aarch64)
+	$(MAKE) cross_build RUST_TARGET=aarch64-unknown-linux-musl
 
 build-cross-umadb-x86_64-unknown-linux-gnu:
-	$(call cross_build,x86_64-unknown-linux-gnu,x86_64)
+	$(MAKE) cross_build RUST_TARGET=x86_64-unknown-linux-gnu
 
 build-cross-umadb-aarch64-unknown-linux-gnu:
-	$(call cross_build,aarch64-unknown-linux-gnu,aarch64)
+	$(MAKE) cross_build RUST_TARGET=aarch64-unknown-linux-gnu
 
 build-cross-umadb-x86_64-apple-darwin:
-	$(call cross_build,x86_64-apple-darwin,x86_64)
+	$(MAKE) cross_build RUST_TARGET=x86_64-apple-darwin
 
 build-cross-umadb-aarch64-apple-darwin:
-	$(call cross_build,aarch64-apple-darwin,aarch64)
+	$(MAKE) cross_build RUST_TARGET=aarch64-apple-darwin
 
 build-cross-umadb-all: \
 	build-cross-umadb-x86_64-unknown-linux-musl \
@@ -221,62 +212,69 @@ build-cross-umadb-all: \
 # Test targets
 # ---------------------------------------------
 
-define run_binary
-	@bash -c '\
-BIN_PATH="$(1)/umadb"; \
-TARGET="$(2)"; \
-TARGET_ARCH="$(3)"; \
-TARGET_OS=$$(echo "$$TARGET" | cut -d"-" -f3); \
-HOST_OS=$$(uname -s); \
-HOST_ARCH=$$(uname -m); \
-if [ "$$HOST_ARCH" = "arm64" ]; then HOST_ARCH=aarch64; fi; \
-echo "Host OS: $$HOST_OS, Host Arch: $$HOST_ARCH"; \
-echo "Target OS: $$TARGET_OS, Target Arch: $$TARGET_ARCH"; \
-\
-if [ "$$HOST_OS" = "Darwin" ] && [ "$$TARGET_OS" = "darwin" ] && [ "$$TARGET_ARCH" = "$$HOST_ARCH" ]; then \
-    echo "🏃 Running $$BIN_PATH directly on macOS host..."; \
-    "$$BIN_PATH" --version; \
-elif [ "$$HOST_OS" = "Darwin" ] && [ "$$TARGET_OS" = "darwin" ] && [ "$$TARGET_ARCH" = "x86_64" ] && [ "$$HOST_ARCH" = "aarch64" ]; then \
-    echo "🏃 Running $$BIN_PATH on Apple Silicon via Rosetta..."; \
-    arch -x86_64 "$$BIN_PATH" --version; \
-elif [ "$$HOST_OS" = "Linux" ] && [ "$$TARGET_OS" = "linux" ] && [ "$$TARGET_ARCH" = "$$HOST_ARCH" ]; then \
-    echo "🏃 Running $$BIN_PATH directly on Linux host..."; \
-    "$$BIN_PATH" --version; \
-elif [ "$$TARGET_OS" = "linux" ]; then \
-    if [ "$$TARGET_ARCH" = "aarch64" ]; then PLATFORM=linux/arm64; else PLATFORM=linux/amd64; fi; \
-    if echo "$$TARGET" | grep -q "musl"; then IMAGE=alpine:3.18; else IMAGE=debian:stable-slim; fi; \
-    echo "🐳 Running $$BIN_PATH in Docker, platform: $$PLATFORM, image: $$IMAGE"; \
-    docker run --rm --platform $$PLATFORM -v $$(pwd)/$$(dirname "$$BIN_PATH"):/usr/local/bin $$IMAGE sh -c "/usr/local/bin/umadb --version"; \
-else \
-    echo "❌ Cannot run $$BIN_PATH on this host or via Docker"; \
-    exit 1; \
-fi'
-endef
+# Detect host architecture
+export HOST_ARCH := $(shell uname -m)
+
+# Detect host OS
+export HOST_OS := $(shell uname -s)
+
+
+run_binary:
+	RUST_TARGET=$(RUST_TARGET); \
+	BIN_PATH="target/$$RUST_TARGET/release/umadb"; \
+	TARGET_ARCH=`echo "$(RUST_TARGET)" | cut -d"-" -f1`; \
+	TARGET_OS=`echo "$(RUST_TARGET)" | cut -d"-" -f3`; \
+	TARGET_LIB=`echo "$(RUST_TARGET)" | cut -d"-" -f4`; \
+	if [ "$(HOST_ARCH)" = "arm64" ]; then HOST_ARCH=aarch64; else HOST_ARCH=$(HOST_ARCH); fi; \
+	echo "Rust target: $$RUST_TARGET"; \
+	echo "BIN_PATH: $$BIN_PATH"; \
+	echo "Host OS: $$HOST_OS"; \
+	echo "Host Arch: $$HOST_ARCH"; \
+	echo "Target OS: $$TARGET_OS"; \
+	echo "Target Arch: $$TARGET_ARCH"; \
+	if [ $$HOST_OS = "Darwin" ] && [ $$TARGET_OS = "darwin" ] && [ $$TARGET_ARCH = $$HOST_ARCH ]; then \
+		echo "🏃 Running $$BIN_PATH directly on macOS host..."; \
+		"$$BIN_PATH" --version; \
+	elif [ $$HOST_OS = "Darwin" ] && [ $$TARGET_OS = "darwin" ] && [ $$TARGET_ARCH = "x86_64" ]; then \
+		echo "🏃 Running $$BIN_PATH directly on macOS host with Rosetta..."; \
+		arch -x86_64 $$BIN_PATH --version; \
+	elif [ $$HOST_OS = "Linux" ] && [ $$TARGET_OS = "linux" ] && [ $$TARGET_ARCH = $$HOST_ARCH ]; then \
+		echo "🏃 Running $$BIN_PATH directly on Linux host..."; \
+		"$$BIN_PATH" --version; \
+	elif [ $$TARGET_OS = "linux" ]; then \
+		if [ $$TARGET_ARCH = "aarch64" ]; then PLATFORM=linux/arm64; else PLATFORM=linux/amd64; fi; \
+		if [ $$TARGET_LIB = "musl" ]; then IMAGE=alpine:3.18; else IMAGE=debian:stable-slim; fi; \
+		echo "🐳 Running $$BIN_PATH in Docker, platform: $$PLATFORM, image: $$IMAGE"; \
+		docker run --rm --platform $$PLATFORM -v $$(pwd)/$$(dirname "$$BIN_PATH"):/usr/local/bin $$IMAGE sh -c "/usr/local/bin/umadb --version"; \
+	else \
+		echo "❌ Cannot run $$BIN_PATH on this host or via Docker"; \
+		exit 1; \
+	fi
 
 
 # Linux x86_64 MUSL
 test-cross-umadb-x86_64-unknown-linux-musl:
-	$(call run_binary,target/x86_64-unknown-linux-musl/release,x86_64-unknown-linux-musl,x86_64)
+	$(MAKE) run_binary RUST_TARGET=x86_64-unknown-linux-musl
 
 # Linux aarch64 MUSL
 test-cross-umadb-aarch64-unknown-linux-musl:
-	$(call run_binary,target/aarch64-unknown-linux-musl/release,aarch64-unknown-linux-musl,aarch64)
+	$(MAKE) run_binary RUST_TARGET=aarch64-unknown-linux-musl
 
 # Linux x86_64 GNU
 test-cross-umadb-x86_64-unknown-linux-gnu:
-	$(call run_binary,target/x86_64-unknown-linux-gnu/release,x86_64-unknown-linux-gnu,x86_64)
+	$(MAKE) run_binary RUST_TARGET=x86_64-unknown-linux-gnu
 
 # Linux aarch64 GNU
 test-cross-umadb-aarch64-unknown-linux-gnu:
-	$(call run_binary,target/aarch64-unknown-linux-gnu/release,aarch64-unknown-linux-gnu,aarch64)
+	$(MAKE) run_binary RUST_TARGET=aarch64-unknown-linux-gnu
 
 # macOS x86_64
 test-cross-umadb-x86_64-apple-darwin:
-	$(call run_binary,target/x86_64-apple-darwin/release,x86_64-apple-darwin,x86_64)
+	$(MAKE) run_binary RUST_TARGET=x86_64-apple-darwin
 
 # macOS aarch64
 test-cross-umadb-aarch64-apple-darwin:
-	$(call run_binary,target/aarch64-apple-darwin/release,aarch64-apple-darwin,aarch64)
+	$(MAKE) run_binary RUST_TARGET=aarch64-apple-darwin
 
 # Run all tests
 test-cross-umadb-all: test-cross-umadb-x86_64-unknown-linux-musl \
