@@ -34,10 +34,10 @@ jobs:
 #          - os: ubuntu-latest
 #            rust_target: aarch64-unknown-linux-musl
           # macOS
-          - os: macos-latest
-            rust_target: x86_64-apple-darwin
-          - os: macos-latest
-            rust_target: aarch64-apple-darwin
+#          - os: macos-latest
+#            rust_target: x86_64-apple-darwin
+#          - os: macos-latest
+#            rust_target: aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
