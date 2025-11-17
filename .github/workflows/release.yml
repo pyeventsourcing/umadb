@@ -46,6 +46,11 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build binary
         run: make build-cross-umadb-${{ matrix.rust_target }}
 
