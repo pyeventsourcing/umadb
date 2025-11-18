@@ -20,4 +20,4 @@ crate-type = ["cdylib"]
 umadb-client = { path = "../umadb-client", version = "0.1.21" }
 umadb-dcb = { path = "../umadb-dcb", version = "0.1.21" }
 pyo3 = { version = "0.24", features = ["abi3-py310", "extension-module"] }
-uuid = { workspace = true }
+uuid = { version = "1.18.1", features = ["v4"] }
