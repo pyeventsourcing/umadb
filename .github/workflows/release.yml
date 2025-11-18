@@ -56,6 +56,9 @@ jobs:
       - name: Build binary
         run: make build-cross-umadb-${{ matrix.rust_target }}
 
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+
       - name: Test binary
         run: make test-cross-umadb-${{ matrix.rust_target }}
 
