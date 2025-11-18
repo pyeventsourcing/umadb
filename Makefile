@@ -40,7 +40,7 @@ build-workspace-exclude-python:
 	cargo build --workspace --exclude umadb-python
 
 build-umadb-python:
-	PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin develop -m crates/python/Cargo.toml
+	PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin develop -m umadb-python/Cargo.toml
 
 test:
 	$(MAKE) test-workspace-exclude-python
@@ -83,7 +83,7 @@ bench-append:
 	@echo "Running benchmark with EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST)"
 	@trap 'kill 0' INT TERM; \
 	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_append_bench && \
-	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) python ./crates/benches/benches/grpc_append_bench_plot.py
+	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) python ./umadb-benches/benches/grpc_append_bench_plot.py
 
 bench-append-cond-all:
 	$(MAKE) bench-append-cond-1
@@ -103,19 +103,19 @@ bench-append-cond:
 	@echo "Running conditional append benchmark with EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST)"
 	@trap 'kill 0' INT TERM; \
 	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_append_cond_bench && \
-	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) python ./crates/benches/benches/grpc_append_cond_bench_plot.py
+	EVENTS_PER_REQUEST=$(EVENTS_PER_REQUEST) MAX_THREADS=$(MAX_THREADS) python ./umadb-benches/benches/grpc_append_cond_bench_plot.py
 
 bench-append-with-readers:
 	@echo "Running append with readers benchmark"
 	@trap 'kill 0' INT TERM; \
 	MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_append_with_readers_bench && \
-	python ./crates/benches/benches/grpc_append_with_readers_bench_plot.py
+	python ./umadb-benches/benches/grpc_append_with_readers_bench_plot.py
 
 bench-read:
 	@echo "Running read benchmark"
 	@trap 'kill 0' INT TERM; \
 	MAX_THREADS=$(MAX_THREADS) BENCH_READ_THROTTLED=$(BENCH_READ_THROTTLED) cargo bench -p umadb-benches --bench grpc_read_bench && \
-	MAX_THREADS=$(MAX_THREADS) BENCH_READ_THROTTLED=$(BENCH_READ_THROTTLED) python ./crates/benches/benches/grpc_read_bench_plot.py
+	MAX_THREADS=$(MAX_THREADS) BENCH_READ_THROTTLED=$(BENCH_READ_THROTTLED) python ./umadb-benches/benches/grpc_read_bench_plot.py
 
 bench-read-throttled:
 	$(MAKE) bench-read BENCH_READ_THROTTLED=1
@@ -124,13 +124,13 @@ bench-read-cond:
 	@echo "Running conditional read benchmark"
 	@trap 'kill 0' INT TERM; \
 	MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_read_cond_bench && \
-	MAX_THREADS=$(MAX_THREADS) python ./crates/benches/benches/grpc_read_cond_bench_plot.py
+	MAX_THREADS=$(MAX_THREADS) python ./umadb-benches/benches/grpc_read_cond_bench_plot.py
 
 bench-read-with-writers:
 	@echo "Running read with writers benchmark"
 	@trap 'kill 0' INT TERM; \
 	MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_read_with_writers_bench && \
-	MAX_THREADS=$(MAX_THREADS) python ./crates/benches/benches/grpc_read_with_writers_bench_plot.py
+	MAX_THREADS=$(MAX_THREADS) python ./umadb-benches/benches/grpc_read_with_writers_bench_plot.py
 
 
 release-crates-dry-run:

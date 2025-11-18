@@ -7,10 +7,10 @@ publish = false
 
 
 [dependencies]
-umadb-dcb = { path = "../dcb" }
-umadb-core = { path = "../core" }
-umadb-client = { path = "../client" }
-umadb-server = { path = "../server" }
+umadb-dcb = { path = "../umadb-dcb" }
+umadb-core = { path = "../umadb-core" }
+umadb-client = { path = "../umadb-client" }
+umadb-server = { path = "../umadb-server" }
 #futures = { workspace = true }
 tokio = { workspace = true }
 tonic = { workspace = true }

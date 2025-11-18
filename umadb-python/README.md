@@ -183,10 +183,10 @@ First, create and activate a virtual environment. Then:
 pip install maturin
 
 # Build and install in development mode
-maturin develop -m crates/python/Cargo.toml
+maturin develop -m ./umadb-python/Cargo.toml
 
 # Or build a wheel
-maturin build -m crates/python/Cargo.toml --release
+maturin build -m ./umadb-python/Cargo.toml --release
 ```
 
 
@@ -198,7 +198,7 @@ The Python bindings can be tested by running a UmaDB server and executing Python
 
 Licensed under either of:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](../../LICENSE-APACHE))
-- MIT license ([LICENSE-MIT](../../LICENSE-MIT))
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](../LICENSE-MIT))
 
 at your option.

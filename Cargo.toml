@@ -1,24 +1,23 @@
 [workspace]
 members = [
-  ".",
-  "crates/dcb",
-  "crates/core",
-  "crates/proto",
-  "crates/server",
-  "crates/client",
-  "crates/umadb",
-  "crates/python",
+  "umadb-dcb",
+  "umadb-core",
+  "umadb-proto",
+  "umadb-server",
+  "umadb-client",
+  "umadb-python",
+  "umadb",
 
   # Internal
-  "crates/benches",
-  "crates/tests-integration",
+  "umadb-benches",
+  "tests-integration",
 ]
 resolver = "2"
 
 exclude = [
-  "crates/python",
-  "crates/tests-integration",
-  "crates/benches",
+  "umadb-python",
+  "tests-integration",
+  "umadb-benches",
 ]
 [workspace.package]
 version = "0.1.21"
