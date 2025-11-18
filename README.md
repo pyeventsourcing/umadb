@@ -24,6 +24,44 @@ UmaDB offers:
 
 UmaDB makes new events fully durable before acknowledgements are returned to clients.
 
+## Quick Start
+
+Run Docker image.
+
+```
+docker run umadb/umadb:latest
+```
+
+Install Python client.
+
+```
+pip install umadb
+```
+
+Read and write events.
+
+```python
+from umadb import Client, Event
+
+# Connect to UmaDB server
+client = Client("http://localhost:50051")
+
+# Create and append events
+event = Event(
+    event_type="UserCreated",
+    data=b"user data",
+    tags=["user", "creation"],
+)
+position = client.append([event])
+print(f"Event appended at position: {position}")
+
+# Read events
+events = client.read()
+for seq_event in events:
+    print(f"Position {seq_event.position}: {seq_event.event.event_type}")
+
+```
+
 ## Key Features
 
 ### Dynamic Consistency Boundaries
@@ -418,23 +456,35 @@ clients concurrently appending events. By comparison with the unconstrained read
 
 ## Building the UmaDB Server
 
-UmaDB provides pre-built binary executables for both amd64 and arm64 architectures. The files are available on [GitHub Releases](https://github.com/pyeventsourcing/umadb/releases).
+UmaDB provides pre-built binary executables. The files are available on [GitHub Releases](https://github.com/pyeventsourcing/umadb/releases).
+
+UmaDB can also be installed using Cargo.
+
+```
+cargo install umadb
+```
+
+This will build and install the `umadb` binary on your `PATH`.
+
+```
+umadb --listen 127.0.0.1:50051 --db-path ./uma.db
+```
 
 To build the UmaDB server binary executable, you need to have Rust and Cargo installed. If you don't have them installed, you can get them from [rustup.rs](https://rustup.rs/).
 
-Once you have Rust and Cargo installed, you can build `umadb` with:
+Once you have Rust and Cargo installed, you could also clone the project Git repo and build `umadb` from source.
 
 ```bash
 cargo build --release
 ```
 
-This will create `umadb` in `target/release/`.
+This will create `umadb` in `./target/release/`.
 
 ```bash
 ./target/release/umadb --listen 127.0.0.1:50051 --db-path ./uma.db
 ```
 
-Or you can use `cargo run` (dev build, builds faster, runs slower):
+You can do `cargo run` for a faster dev build (builds faster, runs slower):
 
 ```bash
 cargo run --bin umadb -- --listen 127.0.0.1:50051 --db-path ./uma.db
@@ -895,13 +945,12 @@ for read_response in subscription_stream:
 
 ```
 
-The [official Python client](https://pypi.org/project/umadb/) for UmaDB is available on PyPI.
-
 ----
 
 ## Rust Clients
 
-The project provides both **asynchronous** and **synchronous** clients for reading and appending events.
+The project provides both **asynchronous** and **synchronous** clients for reading and appending events
+in the Rust crate `umadb-client`.
 
 The synchronous client functions effectively as a wrapper around the asynchronous client.
 
@@ -1360,6 +1409,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+----
+## Python Client
+
+The [official Python client](https://pypi.org/project/umadb/) for UmaDB is available on PyPI.
+
+The Python client uses the Rust client via PYO3.
 
 ----
 
