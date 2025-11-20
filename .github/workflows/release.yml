@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - 'v*.*.*'
-#    branches:
-#      - main
+    branches:
+      - main
 
 #  workflow_dispatch:
 #    inputs:
@@ -47,11 +47,11 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
-#      - name: Install Protoc
-#        uses: arduino/setup-protoc@v3
-#        with:
-#          repo-token: ${{ secrets.GITHUB_TOKEN }}
-#
+      - name: Install Protoc  # I think we only need this for macos?
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build binary
         run: make build-cross-umadb-${{ matrix.rust_target }}
 
@@ -95,14 +95,14 @@ jobs:
       - name: List downloaded artifacts
         run: ls -R artifacts
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: Release ${{ github.event.inputs.tag || github.ref_name }}
-          draft: false
-          prerelease: false
-          files: artifacts/**/*.tar.gz
+#      - name: Create Release
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+#          name: Release ${{ github.event.inputs.tag || github.ref_name }}
+#          draft: false
+#          prerelease: false
+#          files: artifacts/**/*.tar.gz
 
   docker:
     name: Create Docker Images
@@ -160,14 +160,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push multi-arch image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          provenance: mode=max
-          sbom: true
+#      - name: Build and push multi-arch image
+#        uses: docker/build-push-action@v6
+#        with:
+#          context: .
+#          file: Dockerfile
+#          platforms: linux/amd64,linux/arm64
+#          push: true
+#          tags: ${{ steps.meta.outputs.tags }}
+#          labels: ${{ steps.meta.outputs.labels }}
+#          provenance: mode=max
+#          sbom: true

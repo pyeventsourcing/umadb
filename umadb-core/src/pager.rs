@@ -411,13 +411,15 @@ impl MappedPage {
 /// Returns an error if allocation failed.
 pub fn preallocate(file: &File, len: u64) -> io::Result<()> {
     let current_len = file.metadata()?.len();
-    let new_len = current_len
-        .checked_add(len)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "size overflow"))?;
 
     // --- LINUX ---------------------------------------------------------------
     #[cfg(target_os = "linux")]
     {
+
+        current_len
+            .checked_add(len)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "size overflow"))?;
+
         let offset = current_len as i64;
         let length = len as i64;
 
@@ -433,6 +435,10 @@ pub fn preallocate(file: &File, len: u64) -> io::Result<()> {
     #[cfg(target_os = "macos")]
     {
         use nix::libc::{self, fstore_t, F_ALLOCATECONTIG, F_ALLOCATEALL, F_PEOFPOSMODE};
+
+        let new_len = current_len
+            .checked_add(len)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "size overflow"))?;
 
         let mut store: fstore_t = fstore_t {
             fst_flags: F_ALLOCATECONTIG as u32,

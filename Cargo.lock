@@ -1509,15 +1509,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "protobuf-src"
-version = "2.1.1+27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6217c3504da19b85a3a4b2e9a5183d635822d83507ba0986624b5c05b83bfc40"
-dependencies = [
- "cmake",
-]
-
-[[package]]
 name = "pulldown-cmark"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2442,7 +2433,6 @@ name = "umadb-proto"
 version = "0.1.21"
 dependencies = [
  "prost",
- "protobuf-src",
  "tonic",
  "tonic-prost",
  "tonic-prost-build",

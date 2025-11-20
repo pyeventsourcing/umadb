@@ -177,13 +177,22 @@ ensure_target:
 cross_build:
 	$(MAKE) ensure_cross
 	$(MAKE) ensure_target
-	@echo "🚀 Building RUST_TARGET: $(RUST_TARGET), HOST_OS: $(HOST_OS), HOST_ARCH: $(HOST_ARCH)"
-	if [ $$HOST_OS = "Darwin" ]; then \
+	TARGET_ARCH=`echo "$(RUST_TARGET)" | cut -d"-" -f1`; \
+	TARGET_OS=`echo "$(RUST_TARGET)" | cut -d"-" -f3`; \
+	TARGET_ABI=`echo "$(RUST_TARGET)" | cut -d"-" -f4`; \
+	if [ "$(HOST_ARCH)" = "arm64" ]; then HOST_ARCH=aarch64; else HOST_ARCH=$(HOST_ARCH); fi; \
+	echo "🚀 Building RUST_TARGET: $$RUST_TARGET"; \
+	echo "BIN_PATH: $$BIN_PATH"; \
+	echo "Target Arch: $$TARGET_ARCH"; \
+	echo "Target OS: $$TARGET_OS"; \
+	echo "Host Arch: $$HOST_ARCH"; \
+	echo "Host OS: $$HOST_OS"; \
+	if [ $$HOST_OS = "Darwin" ] && [ $$TARGET_OS == "darwin" ]; then \
 		echo "🏃 Running build with cargo directly on macOS host..."; \
-      	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" PROTOC=/usr/bin/protoc cargo build --release --target "$(RUST_TARGET)" --package umadb; \
+      	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" cargo build --release --target "$(RUST_TARGET)" --package umadb; \
 	else \
 	  	echo "🐳 Running build with cross on Docker"; \
-      	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" PROTOC=/usr/bin/protoc cross build --release --target "$(RUST_TARGET)" --package umadb; \
+      	CARGO_BUILD_BUILD_DIR="target/$(RUST_TARGET)/build" cross build --release --target "$(RUST_TARGET)" --package umadb; \
 	fi
 
 
@@ -234,14 +243,14 @@ run_binary:
 	BIN_PATH="target/$$RUST_TARGET/release/umadb"; \
 	TARGET_ARCH=`echo "$(RUST_TARGET)" | cut -d"-" -f1`; \
 	TARGET_OS=`echo "$(RUST_TARGET)" | cut -d"-" -f3`; \
-	TARGET_LIB=`echo "$(RUST_TARGET)" | cut -d"-" -f4`; \
+	TARGET_ABI=`echo "$(RUST_TARGET)" | cut -d"-" -f4`; \
 	if [ "$(HOST_ARCH)" = "arm64" ]; then HOST_ARCH=aarch64; else HOST_ARCH=$(HOST_ARCH); fi; \
 	echo "Rust target: $$RUST_TARGET"; \
 	echo "BIN_PATH: $$BIN_PATH"; \
-	echo "Host OS: $$HOST_OS"; \
-	echo "Host Arch: $$HOST_ARCH"; \
-	echo "Target OS: $$TARGET_OS"; \
 	echo "Target Arch: $$TARGET_ARCH"; \
+	echo "Target OS: $$TARGET_OS"; \
+	echo "Host Arch: $$HOST_ARCH"; \
+	echo "Host OS: $$HOST_OS"; \
 	if [ $$HOST_OS = "Darwin" ] && [ $$TARGET_OS = "darwin" ] && [ $$TARGET_ARCH = $$HOST_ARCH ]; then \
 		echo "🏃 Running $$BIN_PATH directly on macOS host..."; \
 		"$$BIN_PATH" --version; \
@@ -253,7 +262,7 @@ run_binary:
 		"$$BIN_PATH" --version; \
 	elif [ $$TARGET_OS = "linux" ]; then \
 		if [ $$TARGET_ARCH = "aarch64" ]; then PLATFORM=linux/arm64; else PLATFORM=linux/amd64; fi; \
-		if [ $$TARGET_LIB = "musl" ]; then IMAGE=alpine:3.18; else IMAGE=debian:stable-slim; fi; \
+		if [ $$TARGET_ABI = "musl" ]; then IMAGE=alpine:3.18; else IMAGE=debian:stable-slim; fi; \
 		echo "🐳 Running $$BIN_PATH in Docker, platform: $$PLATFORM, image: $$IMAGE"; \
 		docker run --rm --platform $$PLATFORM -v $$(pwd)/$$(dirname "$$BIN_PATH"):/usr/local/bin $$IMAGE sh -c "/usr/local/bin/umadb --version"; \
 	else \
