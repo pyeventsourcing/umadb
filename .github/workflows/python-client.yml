@@ -23,9 +23,11 @@ jobs:
           - runner: ubuntu-22.04
             target: x86_64
             container: quay.io/pypa/manylinux2014_x86_64:latest
+            test-on-docker-platform: linux/amd64
           - runner: ubuntu-22.04
             target: aarch64
             container: quay.io/pypa/manylinux2014_aarch64:latest
+            test-on-docker-platform: linux/arm64
     #          - runner: ubuntu-22.04
     #            target: armv7
     #          - runner: ubuntu-22.04
@@ -70,11 +72,18 @@ jobs:
             export PATH="$HOME/protoc/bin:$PATH"
 
       - name: Test built wheel
-        run: |
-          pip install umadb --no-index --find-links dist --force-reinstall
-          python -c "import umadb"
+        uses: addnab/docker-run-action@v3
+        with:
+          image: quay.io/pypa/manylinux_2_28_x86_64
+          options: |
+            -v ${{ github.workspace }}:/work
+            --platform ${{ matrix.platform.test-on-docker-platform }}
+          run: |
+            # Enable standard Python in the manylinux image
+            /opt/python/cp310-cp310/bin/pip install /work/dist/*.whl
+            /opt/python/cp310-cp310/bin/python -c "import umadb; print('OK')"
 
-      - name: Upload wheels
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.python-version }}-${{ matrix.platform.target }}
@@ -143,7 +152,7 @@ jobs:
             # Import test
             python3 -c "import umadb; print('OK')"
 
-      - name: Upload wheels
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheels-musllinux-${{ matrix.python-version }}-${{ matrix.platform.target }}
@@ -186,7 +195,7 @@ jobs:
           pip install umadb --no-index --find-links dist --force-reinstall
           python -c "import umadb"
 
-      - name: Upload wheels
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-${{ matrix.python-version }}-${{ matrix.platform.target }}
@@ -228,7 +237,7 @@ jobs:
           pip install umadb --no-index --find-links dist --force-reinstall
           python -c "import umadb"
 
-      - name: Upload wheels
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.python-version }}-${{ matrix.platform.target }}
