@@ -4,8 +4,8 @@ on:
   push:
     tags:
       - 'v*.*.*'
-#    branches:
-#      - main
+    branches:
+      - main
 
 
 permissions:
@@ -44,12 +44,12 @@ jobs:
 #      - name: Install build tools
 #        run: pip install maturin cibuildwheel
 #
-      # Only enable QEMU on Linux runners (for aarch64 on linux)
+#       Only enable QEMU on Linux runners (for aarch64 on linux?)?
       - name: Setup QEMU
         if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v1
 
-      - name: Enable binfmt (for multiarch Docker)
+      - name: Set up Docker Buildx
         if: runner.os == 'Linux'
         uses: docker/setup-buildx-action@v2
 
@@ -62,11 +62,11 @@ jobs:
           # Build for all relevant architectures
 #          CIBW_ARCHS_LINUX: "x86_64"
 #          CIBW_ARCHS_LINUX: "x86_64 aarch64"   aarch64 fails, probably need QEMU?
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"  # try again with aarch64
-          CIBW_ARCHS_MACOS: "universal2"
+          CIBW_ARCHS_LINUX: "auto"  # try again with aarch64
+          CIBW_ARCHS_MACOS: "auto"
 #          CIBW_ARCHS_WINDOWS: "x86 AMD64"  x86 gives linker errors when compiling protoc
-          CIBW_ARCHS_WINDOWS: "AMD64"
-          CIBW_BUILD_VERBOSITY: 1
+          CIBW_ARCHS_WINDOWS: "auto"
+#          CIBW_BUILD_VERBOSITY: 1
           MACOSX_DEPLOYMENT_TARGET: 10.12
 
           # maturin arguments
