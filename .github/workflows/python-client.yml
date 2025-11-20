@@ -96,8 +96,25 @@ jobs:
           run: |
             /opt/python/cp310-cp310/bin/pip install /dist/*.whl
             /opt/python/cp310-cp310/bin/python - << 'END'
-            from umadb import Client
-            client = Client('http://umadb-server:50051')
+            from umadb import Client, Event
+
+            # Connect to UmaDB server
+            client = Client("http://localhost:50051")
+            
+            # Create and append events
+            event = Event(
+                event_type="UserCreated",
+                data=b"user data",
+                tags=["user", "creation"],
+            )
+            position = client.append([event])
+            print(f"Event appended at position: {position}")
+            
+            # Read events
+            events = client.read()
+            for seq_event in events:
+                print(f"Position {seq_event.position}: {seq_event.event.event_type}")
+
             END
 
 
@@ -180,8 +197,25 @@ jobs:
           run: |
             pip install /dist/*.whl
             python - << 'END'
-            from umadb import Client
-            client = Client('http://umadb-server:50051')
+            from umadb import Client, Event
+
+            # Connect to UmaDB server
+            client = Client("http://localhost:50051")
+            
+            # Create and append events
+            event = Event(
+                event_type="UserCreated",
+                data=b"user data",
+                tags=["user", "creation"],
+            )
+            position = client.append([event])
+            print(f"Event appended at position: {position}")
+            
+            # Read events
+            events = client.read()
+            for seq_event in events:
+                print(f"Position {seq_event.position}: {seq_event.event.event_type}")
+
             END
 
       - name: Upload artifact
