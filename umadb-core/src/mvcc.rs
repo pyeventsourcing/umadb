@@ -129,7 +129,8 @@ impl Mvcc {
             // Write all three initial root pages using the shared write_pages helper
             let _ = mvcc.write_pages([&free_list_page, &position_page, &tags_page].into_iter())?;
 
-            mvcc.flush()?;
+            // Sync the file to disk.
+            mvcc.fsync()?;
         }
 
         Ok(mvcc)
@@ -232,8 +233,8 @@ impl Mvcc {
         Page::deserialize(page_id, mapped.as_slice())
     }
 
-    pub fn flush(&self) -> DCBResult<()> {
-        self.pager.flush()?;
+    pub fn fsync(&self) -> DCBResult<()> {
+        self.pager.fsync()?;
         Ok(())
     }
 
@@ -388,8 +389,8 @@ impl Mvcc {
             }
         }
 
-        // Flush the file to disk
-        self.flush()?;
+        // Sync the file to disk
+        self.fsync()?;
 
         // Mutate the owned header instance and serialize into the preallocated buffer
         self.update_header(
@@ -406,8 +407,8 @@ impl Mvcc {
             writer.next_position,
         )?;
 
-        // Flush the file to disk
-        self.flush()?;
+        // Sync the file to disk
+        self.fsync()?;
 
         if self.verbose {
             println!("Committed writer with {:?}", writer.tsn);

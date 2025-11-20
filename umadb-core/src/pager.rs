@@ -1,20 +1,21 @@
 use crate::common::PageID;
 use memmap2::{Mmap, MmapOptions};
+// use memmap2::{Advice, MmapOptions};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io;
-use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::os::fd::{AsRawFd, RawFd};
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use umadb_dcb::{DCBError, DCBResult};
-// use memmap2::{Advice, Mmap, MmapOptions};
+use nix::fcntl;
+use std::os::unix::fs::FileExt;
+
 
 // Pager for file I/O
 pub struct Pager {
     pub reader: Arc<File>,
-    // pub writer: Arc<File>,
-    pub writer: Mutex<BufWriter<File>>,
+    pub writer: Arc<File>,
     pub writer_raw_fd: RawFd,
     pub page_size: usize,
     pub is_file_new: bool,
@@ -61,7 +62,7 @@ impl Pager {
         // mmap offsets aligned to OS page boundaries.
         let align_pages = usize::max(1, os_ps / g);
         // Minimum window size in bytes: 10 MiB
-        let min_window_bytes: usize = 10 * 1024 * 1024;
+        let min_window_bytes: usize = 256 * 1024 * 1024;
         // Minimum number of DB pages to reach at least the min window size
         let min_pages = min_window_bytes.div_ceil(page_size);
         // Choose smallest multiple of align_pages that is >= min_pages
@@ -74,7 +75,7 @@ impl Pager {
 
         Ok(Self {
             reader: Arc::new(reader_file),
-            writer: Mutex::new(BufWriter::with_capacity(100 * page_size, writer_file)),
+            writer: Arc::new(writer_file),
             writer_raw_fd,
             page_size,
             is_file_new,
@@ -106,7 +107,6 @@ impl Pager {
     }
 
     pub fn read_page(&self, page_id: PageID) -> io::Result<Vec<u8>> {
-        use std::os::unix::fs::FileExt;
         let file = self.reader.clone();
         let offset = page_id.0 * (self.page_size as u64);
         let mut page = vec![0u8; self.page_size];
@@ -330,30 +330,32 @@ impl Pager {
         })
     }
 
-    pub fn write_page(&self, page_id: PageID, page: &[u8]) -> DCBResult<()> {
-        let mut file = self.writer.lock().unwrap();
-        if page.len() != self.page_size {
+    pub fn write_page(&self, page_id: PageID, page_data: &[u8]) -> DCBResult<()> {
+        // Check the page doesn't overflow the page size.
+        if page_data.len() != self.page_size {
             return Err(DCBError::InternalError(format!(
                 "Page size mismatch: page_id={:?} size={} > PAGE_SIZE={}",
                 page_id,
-                page.len(),
+                page_data.len(),
                 self.page_size
             )));
         }
 
-        // Seek to the correct position
-        file.seek(SeekFrom::Start(page_id.0 * (self.page_size as u64)))?;
+        // Check the page doesn't overflow the file size.
+        let file_len = self.writer.metadata()?.len();
+        if self.page_size as u64 * (page_id.0 + 1) > file_len {
+            if let Err(err) = preallocate(&self.writer, (self.mmap_pages_per_map * self.page_size) as u64) {
+                return Err(DCBError::Io(err))
+            }
+        }
 
         // Write the page data
-        file.write_all(page)?;
+        self.writer.write_at(page_data, page_id.0 * (self.page_size as u64))?;
 
         Ok(())
     }
 
-    pub fn flush(&self) -> io::Result<()> {
-        let mut file = self.writer.lock().unwrap();
-        file.flush()?;
-        // fsync equivalent in Rust
+    pub fn fsync(&self) -> io::Result<()> {
         #[cfg(unix)]
         unsafe {
             let result = libc::fsync(self.writer_raw_fd);
@@ -361,6 +363,17 @@ impl Pager {
                 return Err(io::Error::last_os_error());
             }
         }
+
+        #[cfg(not(unix))]
+        {
+            // Decide what to do on non-Unix targets:
+            // - use std::fs::File::sync_data() or sync_all()
+            // - or return an error
+            return Err(DCBError::InternalError(
+                "fsync not supported on this platform".into(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -386,6 +399,95 @@ pub struct MappedPage {
 impl MappedPage {
     pub fn as_slice(&self) -> &[u8] {
         &self.mmap[self.start..self.start + self.len]
+    }
+}
+
+/// Preallocate `len` bytes *beyond the current file size*.
+///
+/// - Linux: uses `posix_fallocate` (guaranteed allocation)
+/// - macOS: uses `F_PREALLOCATE` (contiguous first, then non-contiguous)
+/// - Other OS: falls back to `File::set_len()` (may be sparse)
+///
+/// Returns an error if allocation failed.
+pub fn preallocate(file: &File, len: u64) -> io::Result<()> {
+    let current_len = file.metadata()?.len();
+    let new_len = current_len
+        .checked_add(len)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "size overflow"))?;
+
+    // --- LINUX ---------------------------------------------------------------
+    #[cfg(target_os = "linux")]
+    {
+        let offset = current_len as i64;
+        let length = len as i64;
+
+        match fcntl::posix_fallocate(file, offset, length) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                return Err(io::Error::from_raw_os_error(e as i32));
+            }
+        }
+    }
+
+    // --- macOS ---------------------------------------------------------------
+    #[cfg(target_os = "macos")]
+    {
+        use nix::libc::{self, fstore_t, F_ALLOCATECONTIG, F_ALLOCATEALL, F_PEOFPOSMODE};
+
+        let mut store: fstore_t = fstore_t {
+            fst_flags: F_ALLOCATECONTIG as u32,
+            fst_posmode: F_PEOFPOSMODE as i32,
+            fst_offset: 0,
+            fst_length: len as i64,
+            fst_bytesalloc: 0,
+        };
+
+        // Try contiguous allocation
+        let r = fcntl::fcntl(
+            file, // <-- MUST BE the File object, not `fd`
+            fcntl::FcntlArg::F_PREALLOCATE(&mut store)
+        );
+        if r.is_err() {
+            println!("Trying non-contiguous file allocation");
+            // Try non-contiguous allocation
+            let mut store2: fstore_t = fstore_t {
+                fst_flags: F_ALLOCATEALL as u32,
+                fst_posmode: F_PEOFPOSMODE as i32,
+                fst_offset: 0,
+                fst_length: len as i64,
+                fst_bytesalloc: 0,
+            };
+
+            let r2 = fcntl::fcntl(
+                file,
+                fcntl::FcntlArg::F_PREALLOCATE(&mut store2),
+            );
+
+            if let Err(_) = r2 {
+                // fallback
+                file.set_len(new_len)?;
+                return Ok(());
+            }
+        } else {
+            println!("Success with contiguous file allocation");
+        }
+
+        // Now extend file size (macOS requirement)
+        let fd = file.as_raw_fd();
+        unsafe {
+            if libc::ftruncate(fd, new_len as i64) != 0 {
+                return Err(io::Error::last_os_error());
+            }
+        }
+
+        return Ok(());
+    }
+
+    // --- OTHER OSes ----------------------------------------------------------
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        file.set_len(new_len)?;
+        Ok(())
     }
 }
 
@@ -425,7 +527,7 @@ mod tests {
 
         pager.write_page(PageID(0), &data1).expect("write page 0");
         pager.write_page(PageID(1), &data2).expect("write page 1");
-        pager.flush().expect("flush");
+        pager.fsync().expect("couldn't fsync");
 
         let r0 = pager.read_page(PageID(0)).expect("read0");
         let r0m = pager.read_page_mmap_slice(PageID(0)).expect("read0m");
@@ -453,9 +555,9 @@ mod tests {
 
         let buf = vec![0u8; page_size];
         pager.write_page(PageID(0), &buf).expect("write p0");
-        pager.flush().expect("flush");
+        pager.fsync().expect("couldn't fsync");
 
-        let err = pager.read_page_mmap_slice(PageID(1)).unwrap_err();
+        let err = pager.read_page_mmap_slice(PageID(256*1024*2)).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::UnexpectedEof);
     }
 
@@ -481,7 +583,7 @@ mod tests {
         pager
             .write_page(PageID(1), &vec![2u8; page_size])
             .expect("write p1");
-        pager.flush().expect("flush");
+        pager.fsync().expect("couldn't fsync");
 
         // Read both pages via mmap
         let _ = pager.read_page_mmap_slice(PageID(0)).expect("read0m");
@@ -517,7 +619,7 @@ mod tests {
                 .write_page(PageID(p), &vec![fill; page_size])
                 .expect("write page");
         }
-        pager.flush().expect("flush");
+        pager.fsync().expect("couldn't fsync");
 
         // First read creates first mmap
         let _ = pager

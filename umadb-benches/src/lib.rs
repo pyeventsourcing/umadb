@@ -11,7 +11,7 @@ pub mod bench_api {
 
     /// Minimal public wrapper to allow Criterion benches to measure commit paths
     pub struct BenchDb {
-        mvcc: Mvcc,
+        pub mvcc: Mvcc,
     }
 
     impl BenchDb {

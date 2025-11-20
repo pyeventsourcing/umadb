@@ -132,6 +132,10 @@ bench-read-with-writers:
 	MAX_THREADS=$(MAX_THREADS) cargo bench -p umadb-benches --bench grpc_read_with_writers_bench && \
 	MAX_THREADS=$(MAX_THREADS) python ./umadb-benches/benches/grpc_read_with_writers_bench_plot.py
 
+bench-throughput-vs-volume:
+	@trap 'kill 0' INT TERM; \
+	cargo bench -p umadb-benches --bench throughput_vs_volume
+
 
 release-crates-dry-run:
 	PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo release --workspace

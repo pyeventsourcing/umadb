@@ -19,6 +19,7 @@ memmap2 = "0.9"
 rand = "0.9"
 byteorder = "1"
 bitflags = "2"
+nix = { version = "0.30", features = ["fs"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

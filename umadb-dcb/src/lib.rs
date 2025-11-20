@@ -436,11 +436,11 @@ mod tests {
     fn test_event_new() {
         let event1 = DCBEvent::new().event_type("type1").data(b"data1").tags(["tagX"]);
 
-        println!("Event created with builder API:");
-        println!("  event_type: {}", event1.event_type);
-        println!("  data: {:?}", event1.data);
-        println!("  tags: {:?}", event1.tags);
-        println!("  uuid: {:?}", event1.uuid);
+        // println!("Event created with builder API:");
+        // println!("  event_type: {}", event1.event_type);
+        // println!("  data: {:?}", event1.data);
+        // println!("  tags: {:?}", event1.tags);
+        // println!("  uuid: {:?}", event1.uuid);
 
         // Verify the fields match expectations
         assert_eq!(event1.event_type, "type1");
