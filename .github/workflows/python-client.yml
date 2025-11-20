@@ -94,7 +94,7 @@ jobs:
           run: |
             # Enable standard Python in the manylinux image
             /opt/python/cp310-cp310/bin/pip install /work/dist/*.whl
-            /opt/python/cp310-cp310/bin/python -c "from umadb import Client; Client("http://localhost:50051")"
+            /opt/python/cp310-cp310/bin/python -c "from umadb import Client; Client('http://localhost:50051')"
 
 
       - name: Upload artifact
@@ -177,7 +177,7 @@ jobs:
             . /venv/bin/activate
             cd /work/dist
             pip install *.whl
-            python -c "from umadb import Client; Client("http://localhost:50051")"
+            python -c "from umadb import Client; Client('http://localhost:50051')"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
