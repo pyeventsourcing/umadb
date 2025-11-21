@@ -24,7 +24,7 @@ jobs:
             target: x86_64
             container: quay.io/pypa/manylinux_2_28_x86_64
             test-on-docker-platform: linux/amd64
-          - runner: ubuntu-22.04-arm64
+          - runner: ubuntu-22.04
             target: aarch64
             container: quay.io/pypa/manylinux_2_28_aarch64
             test-on-docker-platform: linux/arm64
@@ -40,10 +40,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-#      - name: Setup QEMU
-#        if: matrix.platform.target != 'x86_64'
-#        uses: docker/setup-qemu-action@v1
-#
+      - name: Setup QEMU
+        if: matrix.platform.target != 'x86_64'
+        uses: docker/setup-qemu-action@v1
+
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
